@@ -1,0 +1,74 @@
+{
+  "name": "tsperf-vscode",
+  "displayName": "TSPerf",
+  "description": "Inspect TypeScript type complexity and type-checker load time directly in VS Code.",
+  "version": "0.1.0",
+  "publisher": "bonginkan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bonginkan/tsperf-vscode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bonginkan/tsperf-vscode/issues"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
+    "onCommand:tsperf.inspectType",
+    "onCommand:tsperf.inspectFile"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "tsperf.inspectType",
+        "title": "TSPerf: Inspect Type Under Cursor"
+      },
+      {
+        "command": "tsperf.inspectFile",
+        "title": "TSPerf: Inspect Current File"
+      }
+    ],
+    "configuration": {
+      "title": "TSPerf",
+      "properties": {
+        "tsperf.maxDepth": {
+          "type": "number",
+          "default": 6,
+          "minimum": 1,
+          "maximum": 12,
+          "description": "Maximum recursive depth used when scoring TypeScript type complexity."
+        },
+        "tsperf.showDeclarationCodeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline TSPerf code lenses above TypeScript declarations."
+        },
+        "tsperf.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the latest type complexity and load time in the status bar."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "check": "tsc -p ./ --noEmit"
+  },
+  "dependencies": {
+    "typescript": "^5.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/vscode": "^1.90.0"
+  }
+}
