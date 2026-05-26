@@ -2,7 +2,7 @@ import { performance } from "perf_hooks";
 import * as vscode from "vscode";
 import * as ts from "typescript";
 import { ComplexityResult, scoreType } from "./typeComplexity";
-import { declarationName, findDeclarationNodes, findNodeAtOffset, loadProjectForFile } from "./tsProject";
+import { clearProjectCache, declarationName, findDeclarationNodes, findNodeAtOffset, loadProjectForFile } from "./tsProject";
 
 interface TypeInspection {
   name: string;
@@ -12,6 +12,7 @@ interface TypeInspection {
   fileCount: number;
   tsconfigPath?: string;
   complexity: ComplexityResult;
+  cacheHit: boolean;
 }
 
 let output: vscode.OutputChannel;
@@ -26,6 +27,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("tsperf.inspectType", inspectTypeCommand),
     vscode.commands.registerCommand("tsperf.inspectFile", inspectFileCommand),
+    vscode.commands.registerCommand("tsperf.clearProjectCache", clearProjectCacheCommand),
     vscode.languages.registerCodeLensProvider(
       [{ language: "typescript" }, { language: "typescriptreact" }],
       new TsPerfCodeLensProvider(),
@@ -34,6 +36,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   refreshStatusVisibility();
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(refreshStatusVisibility));
+  context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(() => clearProjectCache()));
 }
 
 export function deactivate(): void {
@@ -68,7 +71,7 @@ async function inspectFileCommand(): Promise<void> {
   }
 
   await withProgress("Scoring TypeScript declarations", async () => {
-    const project = loadProjectForFile(editor.document.fileName);
+    const project = loadProjectForFile(editor.document.fileName, { cacheEnabled: getProjectCacheEnabled() });
     const checker = project.program.getTypeChecker();
     const maxDepth = getMaxDepth();
     const rows = findDeclarationNodes(project.sourceFile)
@@ -91,6 +94,7 @@ async function inspectFileCommand(): Promise<void> {
     output.clear();
     output.appendLine(`TSPerf file report: ${editor.document.fileName}`);
     output.appendLine(`Project build: ${project.buildMs.toFixed(1)} ms, source files: ${project.fileCount}`);
+    output.appendLine(`Cache hit: ${project.cacheHit ? "yes" : "no"}`);
     output.appendLine("");
     for (const row of rows) {
       output.appendLine(
@@ -102,8 +106,13 @@ async function inspectFileCommand(): Promise<void> {
   });
 }
 
+async function clearProjectCacheCommand(): Promise<void> {
+  clearProjectCache();
+  void vscode.window.showInformationMessage("TSPerf project cache cleared.");
+}
+
 function inspectNodeAt(fileName: string, offset: number): TypeInspection {
-  const project = loadProjectForFile(fileName);
+  const project = loadProjectForFile(fileName, { cacheEnabled: getProjectCacheEnabled() });
   const checker = project.program.getTypeChecker();
   const node = findNodeAtOffset(project.sourceFile, offset);
   const start = performance.now();
@@ -122,6 +131,7 @@ function inspectNodeAt(fileName: string, offset: number): TypeInspection {
     fileCount: project.fileCount,
     tsconfigPath: project.tsconfigPath,
     complexity: scoreType(checker, type, { maxDepth: getMaxDepth() }),
+    cacheHit: project.cacheHit,
   };
 }
 
@@ -138,6 +148,7 @@ function renderInspection(document: vscode.TextDocument, position: vscode.Positi
   output.appendLine(`Program build: ${inspection.buildMs.toFixed(1)} ms`);
   output.appendLine(`Type resolve: ${inspection.resolveMs.toFixed(1)} ms`);
   output.appendLine(`Total load: ${totalMs.toFixed(1)} ms`);
+  output.appendLine(`Cache hit: ${inspection.cacheHit ? "yes" : "no"}`);
   output.appendLine(`Source files: ${inspection.fileCount}`);
   if (inspection.tsconfigPath) {
     output.appendLine(`tsconfig: ${inspection.tsconfigPath}`);
@@ -209,4 +220,8 @@ function getShowCodeLens(): boolean {
 
 function getShowStatusBar(): boolean {
   return vscode.workspace.getConfiguration("tsperf").get<boolean>("showStatusBar", true);
+}
+
+function getProjectCacheEnabled(): boolean {
+  return vscode.workspace.getConfiguration("tsperf").get<boolean>("cacheProject", true);
 }
