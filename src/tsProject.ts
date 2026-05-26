@@ -48,7 +48,7 @@ export function loadProjectForFile(fileName: string, opts: { cacheEnabled?: bool
             sourceFile,
             tsconfigPath: cached.tsconfigPath,
             fileCount: cached.fileCount,
-            buildMs: cached.lastBuildMs,
+            buildMs: 0,
             cacheHit: true,
           };
         }

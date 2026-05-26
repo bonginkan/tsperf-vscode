@@ -19,7 +19,7 @@ npm install --legacy-peer-deps;
 npx tsc -p . --noEmit;
 npx tsc -p .;
 npx --yes @vscode/vsce package --no-dependencies;
-code --install-extension .\\tsperf-vscode-0.1.0.vsix;
+code --install-extension ./tsperf-vscode-0.1.0.vsix;
 ```
 
 After installing, open a TypeScript or TSX file and run:

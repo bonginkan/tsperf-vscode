@@ -36,7 +36,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
   refreshStatusVisibility();
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(refreshStatusVisibility));
-  context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(() => clearProjectCache()));
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      if (isTypeScriptDocument(document) || isTsConfigDocument(document)) {
+        clearProjectCache();
+      }
+    }),
+  );
 }
 
 export function deactivate(): void {
@@ -208,6 +214,11 @@ async function withProgress<T>(title: string, task: () => Promise<T> | T): Promi
 
 function isTypeScriptDocument(document: vscode.TextDocument): boolean {
   return document.languageId === "typescript" || document.languageId === "typescriptreact";
+}
+
+function isTsConfigDocument(document: vscode.TextDocument): boolean {
+  const normalized = document.fileName.replace(/\\/g, "/");
+  return /(^|\/)tsconfig(\..+)?\.json$/i.test(normalized);
 }
 
 function getMaxDepth(): number {
