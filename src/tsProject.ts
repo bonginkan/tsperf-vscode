@@ -37,9 +37,9 @@ export function loadProjectForFile(fileName: string, opts: { cacheEnabled?: bool
     const cached = projectCache.get(cacheKey);
     if (cached) {
       const currentTsconfigMtime = tsconfigPath ? ts.sys.getModifiedTime?.(tsconfigPath)?.getTime() : undefined;
-      const currentTargetMtime = ts.sys.getModifiedTime?.(fileName)?.getTime();
       const tsconfigFresh = !tsconfigPath || cached.tsconfigMtimeMs === currentTsconfigMtime;
-      const targetFresh = cached.targetMtimeMs === currentTargetMtime;
+      const currentTargetMtime = tsconfigPath ? undefined : ts.sys.getModifiedTime?.(fileName)?.getTime();
+      const targetFresh = tsconfigPath || cached.targetMtimeMs === currentTargetMtime;
       if (tsconfigFresh && targetFresh) {
         const sourceFile = cached.program.getSourceFile(fileName);
         if (sourceFile) {
@@ -96,7 +96,7 @@ export function loadProjectForFile(fileName: string, opts: { cacheEnabled?: bool
       fileCount: program.getSourceFiles().filter((file) => !file.isDeclarationFile).length,
       tsconfigPath,
       tsconfigMtimeMs: tsconfigPath ? ts.sys.getModifiedTime?.(tsconfigPath)?.getTime() : undefined,
-      targetMtimeMs: ts.sys.getModifiedTime?.(fileName)?.getTime(),
+      targetMtimeMs: tsconfigPath ? undefined : ts.sys.getModifiedTime?.(fileName)?.getTime(),
       lastBuildMs: buildMs,
     });
   }
