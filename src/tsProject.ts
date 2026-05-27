@@ -22,10 +22,16 @@ interface CachedProject {
 
 const projectCache = new Map<string, CachedProject>();
 
+/**
+ * Clears all cached TypeScript Programs used by warm inspections.
+ */
 export function clearProjectCache(): void {
   projectCache.clear();
 }
 
+/**
+ * Builds or reuses a TypeScript Program for the given file.
+ */
 export function loadProjectForFile(fileName: string, opts: { cacheEnabled?: boolean } = {}): ProjectLoadResult {
   const start = performance.now();
   const searchDir = path.dirname(fileName);
@@ -111,6 +117,9 @@ export function loadProjectForFile(fileName: string, opts: { cacheEnabled?: bool
   };
 }
 
+/**
+ * Finds the narrowest AST node that contains an editor offset.
+ */
 export function findNodeAtOffset(sourceFile: ts.SourceFile, offset: number): ts.Node {
   let best: ts.Node = sourceFile;
 
@@ -127,6 +136,9 @@ export function findNodeAtOffset(sourceFile: ts.SourceFile, offset: number): ts.
   return best;
 }
 
+/**
+ * Collects declarations that can be ranked in a file-level TSPerf report.
+ */
 export function findDeclarationNodes(sourceFile: ts.SourceFile): ts.Node[] {
   const declarations: ts.Node[] = [];
 
@@ -148,6 +160,9 @@ export function findDeclarationNodes(sourceFile: ts.SourceFile): ts.Node[] {
   return declarations;
 }
 
+/**
+ * Returns a compact display name for a declaration or selected node.
+ */
 export function declarationName(node: ts.Node): string {
   const named = node as ts.Node & { name?: ts.Node };
   if (named.name && ts.isIdentifier(named.name)) {

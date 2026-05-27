@@ -18,6 +18,9 @@ interface TypeInspection {
 let output: vscode.OutputChannel;
 let statusBar: vscode.StatusBarItem;
 
+/**
+ * Registers TSPerf commands, CodeLens support, status UI, and cache invalidation.
+ */
 export function activate(context: vscode.ExtensionContext): void {
   output = vscode.window.createOutputChannel("TSPerf");
   statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 90);
@@ -45,6 +48,9 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 }
 
+/**
+ * Disposes VS Code UI resources owned by the extension.
+ */
 export function deactivate(): void {
   statusBar?.dispose();
   output?.dispose();
