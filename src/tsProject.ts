@@ -8,12 +8,59 @@ export interface ProjectLoadResult {
   tsconfigPath?: string;
   fileCount: number;
   buildMs: number;
+  cacheHit: boolean;
 }
 
-export function loadProjectForFile(fileName: string): ProjectLoadResult {
+interface CachedProject {
+  program: ts.Program;
+  fileCount: number;
+  tsconfigPath?: string;
+  tsconfigMtimeMs?: number;
+  targetMtimeMs?: number;
+  lastBuildMs: number;
+}
+
+const projectCache = new Map<string, CachedProject>();
+
+/**
+ * Clears all cached TypeScript Programs used by warm inspections.
+ */
+export function clearProjectCache(): void {
+  projectCache.clear();
+}
+
+/**
+ * Builds or reuses a TypeScript Program for the given file.
+ */
+export function loadProjectForFile(fileName: string, opts: { cacheEnabled?: boolean } = {}): ProjectLoadResult {
   const start = performance.now();
   const searchDir = path.dirname(fileName);
   const tsconfigPath = ts.findConfigFile(searchDir, ts.sys.fileExists, "tsconfig.json");
+  const cacheKey = tsconfigPath ? `tsconfig:${tsconfigPath}` : `file:${fileName}`;
+
+  const cacheEnabled = opts.cacheEnabled ?? true;
+  if (cacheEnabled) {
+    const cached = projectCache.get(cacheKey);
+    if (cached) {
+      const currentTsconfigMtime = tsconfigPath ? ts.sys.getModifiedTime?.(tsconfigPath)?.getTime() : undefined;
+      const tsconfigFresh = !tsconfigPath || cached.tsconfigMtimeMs === currentTsconfigMtime;
+      const currentTargetMtime = tsconfigPath ? undefined : ts.sys.getModifiedTime?.(fileName)?.getTime();
+      const targetFresh = tsconfigPath || cached.targetMtimeMs === currentTargetMtime;
+      if (tsconfigFresh && targetFresh) {
+        const sourceFile = cached.program.getSourceFile(fileName);
+        if (sourceFile) {
+          return {
+            program: cached.program,
+            sourceFile,
+            tsconfigPath: cached.tsconfigPath,
+            fileCount: cached.fileCount,
+            buildMs: 0,
+            cacheHit: true,
+          };
+        }
+      }
+    }
+  }
 
   let program: ts.Program;
   if (tsconfigPath) {
@@ -48,15 +95,31 @@ export function loadProjectForFile(fileName: string): ProjectLoadResult {
     throw new Error(`Could not load TypeScript source file: ${fileName}`);
   }
 
+  const buildMs = performance.now() - start;
+  if (cacheEnabled) {
+    projectCache.set(cacheKey, {
+      program,
+      fileCount: program.getSourceFiles().filter((file) => !file.isDeclarationFile).length,
+      tsconfigPath,
+      tsconfigMtimeMs: tsconfigPath ? ts.sys.getModifiedTime?.(tsconfigPath)?.getTime() : undefined,
+      targetMtimeMs: tsconfigPath ? undefined : ts.sys.getModifiedTime?.(fileName)?.getTime(),
+      lastBuildMs: buildMs,
+    });
+  }
+
   return {
     program,
     sourceFile,
     tsconfigPath,
     fileCount: program.getSourceFiles().filter((file) => !file.isDeclarationFile).length,
-    buildMs: performance.now() - start,
+    buildMs,
+    cacheHit: false,
   };
 }
 
+/**
+ * Finds the narrowest AST node that contains an editor offset.
+ */
 export function findNodeAtOffset(sourceFile: ts.SourceFile, offset: number): ts.Node {
   let best: ts.Node = sourceFile;
 
@@ -73,6 +136,9 @@ export function findNodeAtOffset(sourceFile: ts.SourceFile, offset: number): ts.
   return best;
 }
 
+/**
+ * Collects declarations that can be ranked in a file-level TSPerf report.
+ */
 export function findDeclarationNodes(sourceFile: ts.SourceFile): ts.Node[] {
   const declarations: ts.Node[] = [];
 
@@ -94,6 +160,9 @@ export function findDeclarationNodes(sourceFile: ts.SourceFile): ts.Node[] {
   return declarations;
 }
 
+/**
+ * Returns a compact display name for a declaration or selected node.
+ */
 export function declarationName(node: ts.Node): string {
   const named = node as ts.Node & { name?: ts.Node };
   if (named.name && ts.isIdentifier(named.name)) {

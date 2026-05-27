@@ -17,6 +17,9 @@ export interface ComplexityResult {
   truncated: boolean;
 }
 
+/**
+ * Scores a TypeScript type by walking user-declared structure up to maxDepth.
+ */
 export function scoreType(checker: ts.TypeChecker, type: ts.Type, options: ComplexityOptions): ComplexityResult {
   const result: ComplexityResult = {
     score: 0,

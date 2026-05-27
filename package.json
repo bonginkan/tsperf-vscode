@@ -35,6 +35,10 @@
       {
         "command": "tsperf.inspectFile",
         "title": "TSPerf: Inspect Current File"
+      },
+      {
+        "command": "tsperf.clearProjectCache",
+        "title": "TSPerf: Clear Project Cache"
       }
     ],
     "configuration": {
@@ -56,6 +60,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show the latest type complexity and load time in the status bar."
+        },
+        "tsperf.cacheProject": {
+          "type": "boolean",
+          "default": true,
+          "description": "Cache the TypeScript Program between inspections to avoid rebuilding on every command."
         }
       }
     }
